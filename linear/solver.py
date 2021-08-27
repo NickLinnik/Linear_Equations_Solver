@@ -1,6 +1,5 @@
 import copy
 from collections import deque
-from fractions import Fraction
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -12,7 +11,7 @@ class Matrix:
     def __init__(self, matrix):
         self.matrix = []
         for eq in matrix:
-            self.matrix.append(list(map(lambda x: Fraction(x), eq)))
+            self.matrix.append(list(map(lambda x: complex(x), eq)))
 
     @classmethod
     def from_file(cls, path):
@@ -31,7 +30,7 @@ class Matrix:
             for i in range(eq_num):
                 matrix.append([])
                 for _ in range(vars_num + 1):
-                    matrix[i].append(float(string_queue.popleft()))
+                    matrix[i].append(string_queue.popleft())
             return cls(matrix)
 
     def solve(self):
@@ -39,6 +38,7 @@ class Matrix:
         variables = []
         matrix = copy.deepcopy(self.matrix)
         col_permutations = deque()
+        print('__________________________________________________')
 
         try:
             Matrix._check_zero_equations(matrix)
@@ -47,9 +47,9 @@ class Matrix:
                 if matrix[i][j] == 0:
                     Matrix._swap_zero_entry(matrix, i, j, col_permutations)
 
-                if (coef := Fraction(1, matrix[i][j])) != 1:
-                    matrix[i] = list(map(lambda x: x * coef, matrix[i]))
-                    print(f'{float(coef)} * R{i + 1} -> R{i + 1}')
+                if (coef := matrix[i][j]) != 1:
+                    matrix[i] = list(map(lambda x: x / coef, matrix[i]))
+                    print(f'R{i + 1} / {str(coef).strip("()")} -> R{i + 1}')
 
                 Matrix._eliminate(matrix, i)
                 Matrix._check_zero_equations(matrix)
@@ -67,7 +67,7 @@ class Matrix:
             for i, equation in enumerate(matrix):
                 if len(list(filter(lambda x: x != 0, equation))) > 2:
                     raise Matrix.InfiniteSolutionsException
-                variables.append(float(equation[-1] / equation[i]))
+                variables.append(Matrix._get_formatted_complex(equation[-1]))
 
         except (Matrix.NoSolutionException, Matrix.InfiniteSolutionsException) as err:
             variables = [err]
@@ -89,7 +89,7 @@ class Matrix:
             if (coef_ := -matrix[other][entry_]) == 0:
                 continue
             matrix[other] = list(map(lambda x, y: x + y * coef_, matrix[other], matrix[entry_]))
-            print(f'{float(coef_)} * R{entry_ + 1} + R{other + 1} -> R{other + 1}')
+            print(f'{str(coef_).strip("()")} * R{entry_ + 1} + R{other + 1} -> R{other + 1}')
 
     @staticmethod
     def _check_zero_equations(matrix):
@@ -124,10 +124,15 @@ class Matrix:
         for row_ind in range(len(matrix)):
             matrix[row_ind][col_a], matrix[row_ind][col_b] = matrix[row_ind][col_b], matrix[row_ind][col_a]
 
+    @staticmethod
+    def _get_formatted_complex(num: complex):
+        return num if num.imag != 0 else num.real
+
 
 if __name__ == '__main__':
     args = parser.parse_args()
     with open(args.outfile, 'w') as out_file:
         input_matrix = Matrix.from_file(args.infile)
-        result = input_matrix.solve()
-        out_file.write('\n'.join(list(map(lambda x: str(x), result))))
+        result = list(map(lambda x: str(x).strip('()'), input_matrix.solve()))
+        out_file.write('\n'.join(result))
+        print('__________________________________________________', *result, sep='\n')
